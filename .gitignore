@@ -87,3 +87,12 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+output/
+images/
+data/
+*.png
+*.jpg
+
+config.py
+
