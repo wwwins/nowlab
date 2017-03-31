@@ -88,7 +88,7 @@ def dlibFaceDetect(gray):
     global startTime
     faces = detector(gray, 0)
     if len(faces)>0:
-        status = PROCESS_FACE
+        # status = PROCESS_FACE
         startTime = time.time()
         print("dlib Found {0} faces!".format(len(faces)))
     # Drawing a rectangle
@@ -96,7 +96,7 @@ def dlibFaceDetect(gray):
         print("Detection {}: Left: {} Top: {} Right: {} Bottom: {}".format(i, d.left(), d.top(), d.right(), d.bottom()))
         # cv2.rectangle(frame, (d.left(), d.top()), (d.right(), d.bottom()), (0, 255, 0), 2)
         cv2.rectangle(gray, (d.left(), d.top()), (d.right(), d.bottom()), (0, 255, 0), 2)
-    return gray
+    return gray,len(faces)
 
 def faceDetect(gray):
     global frame
@@ -179,6 +179,7 @@ def main_thread():
     status = DETECT_FACE
 
     cnt = 0
+    file_cnt = 0
     while True:
         # Capture frame-by-frame
         _,frame = video_capture.read()
@@ -197,10 +198,15 @@ def main_thread():
             if (cnt%SKIP_FRAME==0):
                 if ENABLE_FACE_DETECT:
                     if ENABLE_DLIB:
-                        resultFrame = dlibFaceDetect(gray)
+                        resultFrame,faces = dlibFaceDetect(gray)
                     else:
                         resultFrame = faceDetect(gray)
                     cv2.imshow('Preview',resultFrame)
+                    if faces > 0:
+                        cv2.imwrite("output/{}_{}_{}.png".format(userid,username,file_cnt), frame)
+                        file_cnt = file_cnt + 1
+                    if file_cnt > 10:
+                        status = PROCESS_FACE
         elif (status==PROCESS_FACE):
             # 倒數 5,4,3,2,1,0
             # 5秒後處理圖片
@@ -211,7 +217,7 @@ def main_thread():
                 pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
             print("存檔")
-            cv2.imwrite("output/save.png", frame)
+            # cv2.imwrite("output/save.png", frame)
             status = SHOW_RESULT
             startTime = time.time()
         elif (status==SHOW_RESULT):
