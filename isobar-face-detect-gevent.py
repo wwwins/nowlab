@@ -48,12 +48,13 @@ MIN_NEIGHBORS = 5
 #MIN_SIZE = 30
 MIN_SIZE = 80
 
-_url = config._url
-_key = config._key
-
 postHeader = {}
-postHeader['Ocp-Apim-Subscription-Key'] = _key
+postHeader['Ocp-Apim-Subscription-Key'] = config.Emotion.key
 postHeader['Content-Type'] = 'application/octet-stream'
+
+postVisionHeader = {}
+postVisionHeader['Ocp-Apim-Subscription-Key'] = config.Vision.key
+postVisionHeader['Content-Type'] = 'application/octet-stream'
 
 gResult = {}
 startTime = time.time()
@@ -124,10 +125,10 @@ def showCenterText(buf):
     rect, baseline = cv2.getTextSize(buf,cv2.FONT_HERSHEY_SIMPLEX,5,10)
     cv2.putText(frame, buf, (int((FRAME_WIDTH-rect[0])*0.5),int(FRAME_HEIGHT*0.5)), cv2.FONT_HERSHEY_SIMPLEX, 5,(255,5,5),10,cv2.LINE_AA)
 
-def processRequest(data, headers):
+def processRequest(url, data, headers, params=None):
     print('processRequest')
     result = None
-    response = requests.post(_url, headers = headers, data = data)
+    response = requests.post(url, headers = headers, data = data, params = params)
     if response.status_code == 429:
         if DEBUG:
             print("Message: %s" % (response.json()['error']['message']))
@@ -138,7 +139,10 @@ def processRequest(data, headers):
     else:
         if DEBUG:
             print("Error code: %d" % (response.status_code))
-            print("Message: %s" % (response.json()['error']['message'] ))
+            try:
+                print("Message: %s" % (response.json()['error']['message'] ))
+            except Exception as e:
+                print(e)
     return result
 
 
@@ -148,7 +152,7 @@ def emotionAnalysis(frame):
     currEmotion = "none"
     _, f = cv2.imencode('.jpg',frame)
     gevent.sleep(3)
-    # json = processRequest(f.tobytes(), postHeader)
+    # json = processRequest(config.Emotion.url, f.tobytes(), postHeader)
     # if len(json) > 0:
     #     facerect = json[0]["faceRectangle"]
     #     scores = json[0]["scores"]
@@ -157,6 +161,27 @@ def emotionAnalysis(frame):
     gResult["emotion"] = currEmotion
     status = SAVE_FRAME
     return currEmotion
+
+def visionAnalysis(frame):
+    print("visionAnalysis")
+    global status, gResult
+    status = PROCESS_REQUEST
+    age = 0
+    gender = "Male"
+    _, f = cv2.imencode('.jpg',frame)
+    gevent.sleep(3)
+    # json = processRequest(config.Vision.url, f.tobytes(), postVisionHeader, {'visualFeatures':'Description,Faces'})
+    # if len(json) > 0:
+    #     description = json["description"]["captions"][0]["text"]
+    #     age = json["faces"][0]["age"]
+    #     gender = json["faces"][0]["gender"]
+    # print('Age:{}, Gender:{}, Desc:{}'.format(age,gender,description))
+    # gResult["description"] = description
+    # gResult["age"] = age
+    # gResult["gender"] = gender
+    gResult["emotion"] = gender
+    status = SAVE_FRAME
+    return age,gender,description
 
 def pkill(pname):
     subprocess.call(['pkill', pname])
@@ -214,6 +239,7 @@ def main_thread():
                 showCenterText(str(int(time.time()-startTime)))
             if time.time()-startTime > 5:
                 # emotionAnalysis(frame)
+                # visionAnalysis(frame)
                 pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
             print("存檔")
