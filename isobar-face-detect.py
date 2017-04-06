@@ -45,8 +45,8 @@ MIN_NEIGHBORS = 5
 #MIN_SIZE = 30
 MIN_SIZE = 80
 
-_url = config._url
-_key = config._key
+_url = config.Emotion.url
+_key = config.Emotion.key
 
 postHeader = {}
 postHeader['Ocp-Apim-Subscription-Key'] = _key
