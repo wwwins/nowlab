@@ -14,7 +14,9 @@ from skimage import io
 import dlib
 import gevent
 import signal
+from socket import *
 from gevent.threadpool import ThreadPool
+from gevent.select import select as gselect
 import config
 
 #### each steps ####
@@ -56,6 +58,7 @@ postVisionHeader = {}
 postVisionHeader['Ocp-Apim-Subscription-Key'] = config.Vision.key
 postVisionHeader['Content-Type'] = 'application/octet-stream'
 
+gMessage = {}
 gResult = {}
 startTime = time.time()
 
@@ -168,6 +171,7 @@ def visionAnalysis(frame):
     status = PROCESS_REQUEST
     age = 0
     gender = "Male"
+    description = ""
     _, f = cv2.imencode('.jpg',frame)
     gevent.sleep(3)
     # json = processRequest(config.Vision.url, f.tobytes(), postVisionHeader, {'visualFeatures':'Description,Faces'})
@@ -183,12 +187,37 @@ def visionAnalysis(frame):
     status = SAVE_FRAME
     return age,gender,description
 
+def start_server():
+    print("server starting")
+    sock = socket()
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR,1)
+    sock.setblocking(0)
+    sock.bind(('',6666))
+    sock.listen(5)
+    inputs = [sock]
+    while True:
+        read_sockets,_,_ = gselect(inputs,[],[])
+        for s in read_sockets:
+            if s is sock:
+                client, addr = s.accept()
+                print('Connection:{}'.format(addr))
+                client.setblocking(0)
+                inputs.append(client)
+            else:
+                data = s.recv(100)
+                if len(data) > 0:
+                    print('recv:{}'.format(data))
+                else:
+                    inputs.remove(s)
+                    s.close()
+
 def pkill(pname):
     subprocess.call(['pkill', pname])
 
 def main():
     gevent.signal(signal.SIGQUIT, gevent.kill)
     gevent.spawn(main_thread)
+    pool.spawn(start_server)
     gevent.wait()
 
 def main_thread():
@@ -240,6 +269,7 @@ def main_thread():
             if time.time()-startTime > 5:
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
+                # pool.spawn(visionAnalysis,frame)
                 pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
             print("存檔")
