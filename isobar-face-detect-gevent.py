@@ -9,7 +9,7 @@ import time
 import requests
 import random
 import string
-from subprocess import Popen, PIPE
+import subprocess
 from ticket import ticket
 from imutils.video import VideoStream
 from skimage import io
@@ -202,6 +202,7 @@ def get_user_info(userid):
     print("id:{} name:{}".format(gResult['userid'],gResult['username']))
     if (status==PROCESS_REQUEST):
         status = DETECT_FACE
+    sayit('{}   歡迎光臨'.format(gResult['username']))
 
 def start_server():
     print("server starting")
@@ -229,6 +230,9 @@ def start_server():
                 else:
                     inputs.remove(s)
                     s.close()
+
+def sayit(contents):
+    subprocess.Popen(['say', contents])
 
 def pkill(pname):
     subprocess.call(['pkill', pname])
