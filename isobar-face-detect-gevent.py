@@ -7,6 +7,8 @@ import cv2
 import sys
 import time
 import requests
+import random
+import string
 from subprocess import Popen, PIPE
 from ticket import ticket
 from imutils.video import VideoStream
@@ -21,13 +23,16 @@ import config
 
 #### each steps ####
 INIT = 0
-DETECT_FACE = 1
-PROCESS_FACE = 2
-PROCESS_REQUEST = 3
-SAVE_FRAME = 4
-SHOW_RESULT = 5
-END = 6
+WAITING = 1
+CHECKIN = 2
+DETECT_FACE = 3
+PROCESS_FACE = 4
+PROCESS_REQUEST = 5
+SAVE_FRAME = 6
+SHOW_RESULT = 7
+END = 8
 
+status_text = ['init','waiting','checkin','detect face','process face','process request','save','result','end']
 status = INIT
 ####################
 
@@ -58,7 +63,6 @@ postVisionHeader = {}
 postVisionHeader['Ocp-Apim-Subscription-Key'] = config.Vision.key
 postVisionHeader['Content-Type'] = 'application/octet-stream'
 
-gMessage = {}
 gResult = {}
 startTime = time.time()
 
@@ -69,8 +73,8 @@ if len(sys.argv) < 3:
     """)
     sys.exit(-1)
 
-userid = sys.argv[1]
-username = sys.argv[2]
+# userid = sys.argv[1]
+# username = sys.argv[2]
 # cascPath = sys.argv[3]
 cascPath = "/Users/isobar/github/nowlab/data/haarcascade_frontalface_alt.xml"
 faceCascade = cv2.CascadeClassifier(cascPath)
@@ -162,7 +166,8 @@ def emotionAnalysis(frame):
     #     currEmotion = max(scores, key=scores.get)
     # print('Analysis: %s' % currEmotion)
     gResult["emotion"] = currEmotion
-    status = SAVE_FRAME
+    if (status==PROCESS_REQUEST):
+        status = SAVE_FRAME
     return currEmotion
 
 def visionAnalysis(frame):
@@ -184,11 +189,23 @@ def visionAnalysis(frame):
     # gResult["age"] = age
     # gResult["gender"] = gender
     gResult["emotion"] = gender
-    status = SAVE_FRAME
+    if (status==PROCESS_REQUEST):
+        status = SAVE_FRAME
     return age,gender,description
+
+def get_user_info(userid):
+    global status, gResult
+    status = PROCESS_REQUEST
+    gevent.sleep(3)
+    gResult["username"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+    # return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+    print("id:{} name:{}".format(gResult['userid'],gResult['username']))
+    if (status==PROCESS_REQUEST):
+        status = DETECT_FACE
 
 def start_server():
     print("server starting")
+    global status
     sock = socket()
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR,1)
     sock.setblocking(0)
@@ -206,13 +223,23 @@ def start_server():
             else:
                 data = s.recv(100)
                 if len(data) > 0:
+                    gResult["userid"] = data
                     print('recv:{}'.format(data))
+                    status = CHECKIN
                 else:
                     inputs.remove(s)
                     s.close()
 
 def pkill(pname):
     subprocess.call(['pkill', pname])
+
+def init():
+    global status,gResult,cnt,file_cnt
+    status = WAITING
+    gResult["userid"] = ''
+    gResult["username"] = ''
+    cnt = 0
+    file_cnt = 0
 
 def main():
     gevent.signal(signal.SIGQUIT, gevent.kill)
@@ -221,7 +248,7 @@ def main():
     gevent.wait()
 
 def main_thread():
-    global frame, status, startTime, gResult
+    global frame, status, startTime, gResult,cnt,file_cnt
 
     cv2.namedWindow("Preview")
     cv2.moveWindow("Preview", 2560-320, 0)
@@ -229,11 +256,8 @@ def main_thread():
     gevent.sleep(1)
     t = ticket()
 
-    print ("id:{},name:{}".format(userid,username))
-    status = DETECT_FACE
+    init()
 
-    cnt = 0
-    file_cnt = 0
     while True:
         # Capture frame-by-frame
         _,frame = video_capture.read()
@@ -243,11 +267,23 @@ def main_thread():
         gray = cv2.resize(gray,(320,180))
 
         # 顯示文字
-        for i in range(1,7):
-            showText("Line"+str(i), 50, 100*i)
-        showText("{},{}".format(userid,username), 50, 100*(i+1))
+        # for i in range(1,7):
+        #     showText("Line"+str(i), 50, 100*i)
+        # showText("Waiting...", 50, 100*(i+1))
+        showText("status:{}".format(status_text[status]), 50,100)
 
-        if (status==DETECT_FACE):
+        userid = gResult["userid"]
+        username = gResult["username"]
+
+        if (status==WAITING):
+            print("Waiting")
+        elif (status==CHECKIN):
+            gResult["username"] = ''
+            cnt = 0
+            file_cnt = 0
+            # 依讀卡機傳來卡號，取得使用者資料
+            pool.spawn(get_user_info,userid)
+        elif (status==DETECT_FACE):
             print("臉部偵測")
             if (cnt%SKIP_FRAME==0):
                 if ENABLE_FACE_DETECT:
@@ -279,7 +315,7 @@ def main_thread():
         elif (status==SHOW_RESULT):
             # 顯示結果(5秒)
             if time.time()-startTime < 6:
-                showCenterText("r:{},{}".format(gResult["emotion"],str(int(time.time()-startTime))))
+                showCenterText("{}:{},{}".format(gResult["username"],gResult["emotion"],str(int(time.time()-startTime))))
             if time.time()-startTime > 5:
                 status = END
         elif (status==END):
