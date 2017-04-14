@@ -18,7 +18,7 @@ import gevent
 import signal
 from socket import *
 from gevent.threadpool import ThreadPool
-from gevent.select import select as gselect
+from gevent.server import StreamServer
 import config
 
 #### each steps ####
@@ -204,32 +204,21 @@ def get_user_info(userid):
         status = DETECT_FACE
     sayit('{}   歡迎光臨'.format(gResult['username']))
 
-def start_server():
-    print("server starting")
+def handle(socket, address):
+
     global status
-    sock = socket()
-    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR,1)
-    sock.setblocking(0)
-    sock.bind(('',6666))
-    sock.listen(5)
-    inputs = [sock]
+    print('New connection from:{}'.format(address))
+    rfileobj = socket.makefile(mode='rb')
     while True:
-        read_sockets,_,_ = gselect(inputs,[],[])
-        for s in read_sockets:
-            if s is sock:
-                client, addr = s.accept()
-                print('Connection:{}'.format(addr))
-                client.setblocking(0)
-                inputs.append(client)
-            else:
-                data = s.recv(100)
-                if len(data) > 0:
-                    gResult["userid"] = data
-                    print('recv:{}'.format(data))
-                    status = CHECKIN
-                else:
-                    inputs.remove(s)
-                    s.close()
+        line = rfileobj.readline()
+        if not line:
+            print("client disconnected")
+            break
+        gResult["userid"] = line
+        status = CHECKIN
+        print("echoed %r" % line)
+    rfileobj.close()
+
 
 def sayit(contents):
     subprocess.Popen(['say', contents])
@@ -248,7 +237,10 @@ def init():
 def main():
     gevent.signal(signal.SIGQUIT, gevent.kill)
     gevent.spawn(main_thread)
-    pool.spawn(start_server)
+
+    server = StreamServer(('', 6666), handle)
+    server.start()
+
     gevent.wait()
 
 def main_thread():
@@ -334,6 +326,7 @@ def main_thread():
             break
 
         cnt = cnt + 1
+        gevent.sleep(0.001)
 
     # When everything is done, release the capture
     video_capture.release()
