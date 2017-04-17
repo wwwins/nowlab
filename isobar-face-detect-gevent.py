@@ -20,19 +20,22 @@ from socket import *
 from gevent.threadpool import ThreadPool
 from gevent.server import StreamServer
 import config
+import siri
 
 #### each steps ####
 INIT = 0
 WAITING = 1
 CHECKIN = 2
-DETECT_FACE = 3
-PROCESS_FACE = 4
-PROCESS_REQUEST = 5
-SAVE_FRAME = 6
-SHOW_RESULT = 7
-END = 8
+SIRI_TIME = 3
+DETECT_FACE = 4
+PROCESS_FACE = 5
+PROCESS_REQUEST = 6
+PROCESSING = 7
+SAVE_FRAME = 8
+SHOW_RESULT = 9
+END = 10
 
-status_text = ['init','waiting','checkin','detect face','process face','process request','save','result','end']
+status_text = ['init','waiting','checkin','siri time','detect face','process face','process request','processing','save','result','end']
 status = INIT
 ####################
 
@@ -196,13 +199,19 @@ def visionAnalysis(frame):
 def get_user_info(userid):
     global status, gResult
     status = PROCESS_REQUEST
-    gevent.sleep(3)
-    gResult["username"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+    # gevent.sleep(3)
+    # gResult["username"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
     # return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-    print("id:{} name:{}".format(gResult['userid'],gResult['username']))
+    response = requests.post("https://uinames.com/api/", {"userid":userid})
+    try:
+        data = response.json()
+    except Exception as e:
+        data = {'name': ''}
+        print(e)
+    gResult['username'] = data['name']
+    print("name:{}".format(gResult['username']))
     if (status==PROCESS_REQUEST):
-        status = DETECT_FACE
-    sayit('{}   歡迎光臨'.format(gResult['username']))
+        status = SIRI_TIME
 
 def handle(socket, address):
 
@@ -223,6 +232,25 @@ def handle(socket, address):
 def sayit(contents):
     subprocess.Popen(['say', contents])
 
+def say_welcome(contents):
+    global status
+    status = PROCESSING
+    sayit(contents)
+    gevent.sleep(5)
+    buf = "{},{}".format(random.choice(siri.SIRI_BOSS), random.choice(siri.SIRI_123))
+    sayit(buf)
+    gevent.sleep(7)
+    if (status==PROCESSING):
+        status = DETECT_FACE
+
+def say_result(contents):
+    global status
+    status = PROCESSING
+    sayit(contents)
+    gevent.sleep(6)
+    if (status==PROCESSING):
+        status = SHOW_RESULT
+
 def pkill(pname):
     subprocess.call(['pkill', pname])
 
@@ -238,7 +266,7 @@ def main():
     gevent.signal(signal.SIGQUIT, gevent.kill)
     gevent.spawn(main_thread)
 
-    server = StreamServer(('', 6666), handle)
+    server = StreamServer(('', 5555), handle)
     server.start()
 
     gevent.wait()
@@ -279,6 +307,9 @@ def main_thread():
             file_cnt = 0
             # 依讀卡機傳來卡號，取得使用者資料
             pool.spawn(get_user_info,userid)
+        elif (status==SIRI_TIME):
+            buf = '{} {}, 歡迎來到, isobar 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
+            pool.spawn(say_welcome, buf)
         elif (status==DETECT_FACE):
             print("臉部偵測")
             if (cnt%SKIP_FRAME==0):
@@ -295,18 +326,19 @@ def main_thread():
                         status = PROCESS_FACE
         elif (status==PROCESS_FACE):
             # 倒數 5,4,3,2,1,0
-            # 5秒後處理圖片
-            if time.time()-startTime < 6:
+            # 1秒後處理圖片
+            if time.time()-startTime < 2:
                 showCenterText(str(int(time.time()-startTime)))
-            if time.time()-startTime > 5:
+            if time.time()-startTime > 1:
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
                 # pool.spawn(visionAnalysis,frame)
                 pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
-            print("存檔")
+            print("say result")
             # cv2.imwrite("output/save.png", frame)
-            status = SHOW_RESULT
+            buf = random.choice(siri.MALE_RESULT)
+            pool.spawn(say_result,buf)
             startTime = time.time()
         elif (status==SHOW_RESULT):
             # 顯示結果(5秒)
