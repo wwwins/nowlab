@@ -191,7 +191,10 @@ def visionAnalysis(frame):
     # gResult["description"] = description
     # gResult["age"] = age
     # gResult["gender"] = gender
-    gResult["emotion"] = gender
+    if (DEBUG):
+        gResult["gender"] = random.choice(["Male","Female"])
+        gResult["age"] = random.randint(1,100)
+        gResult["emotion"] = "neutral"
     if (status==PROCESS_REQUEST):
         status = SAVE_FRAME
     return age,gender,description
@@ -237,9 +240,10 @@ def say_welcome(contents):
     status = PROCESSING
     sayit(contents)
     gevent.sleep(5)
-    buf = "{},{}".format(random.choice(siri.SIRI_BOSS), random.choice(siri.SIRI_123))
-    sayit(buf)
-    gevent.sleep(7)
+    sayit(random.choice(siri.SIRI_BOSS))
+    gevent.sleep(3)
+    sayit(random.choice(siri.SIRI_123))
+    gevent.sleep(5)
     if (status==PROCESSING):
         status = DETECT_FACE
 
@@ -250,6 +254,14 @@ def say_result(contents):
     gevent.sleep(6)
     if (status==PROCESSING):
         status = SHOW_RESULT
+
+def say_bye(contents):
+    global status
+    status = PROCESSING
+    sayit(contents)
+    gevent.sleep(4)
+    if (status==PROCESSING):
+        status = END
 
 def pkill(pname):
     subprocess.call(['pkill', pname])
@@ -332,12 +344,20 @@ def main_thread():
             if time.time()-startTime > 1:
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
-                # pool.spawn(visionAnalysis,frame)
-                pool.spawn(emotionAnalysis,frame)
+                pool.spawn(visionAnalysis,frame)
+                # pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
             print("say result")
             # cv2.imwrite("output/save.png", frame)
-            buf = random.choice(siri.MALE_RESULT)
+            idx = gResult["age"] / 10
+            if idx > len(siri.MALE_RESULT)-1:
+                idx = len(siri.MALE_RESULT)-1
+            if (gResult["gender"]=="Male"):
+                msg = siri.MALE_RESULT[idx]
+                buf = msg.replace("{}", str(gResult["age"]))
+            else:
+                msg = siri.FEMALE_RESULT[idx]
+                buf = msg.replace("{}", str(gResult["age"]))
             pool.spawn(say_result,buf)
             startTime = time.time()
         elif (status==SHOW_RESULT):
@@ -345,7 +365,7 @@ def main_thread():
             if time.time()-startTime < 6:
                 showCenterText("{}:{},{}".format(gResult["username"],gResult["emotion"],str(int(time.time()-startTime))))
             if time.time()-startTime > 5:
-                status = END
+                pool.spawn(say_bye, siri.SIRI_BYE[0])
         elif (status==END):
             pass
 
