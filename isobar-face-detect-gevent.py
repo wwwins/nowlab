@@ -132,11 +132,15 @@ def faceDetect(gray):
     return frame
 
 def showText(buf,x,y):
-    cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 2,(5,5,255),2,cv2.LINE_AA)
+    cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(5,5,255),2,cv2.LINE_AA)
 
 def showCenterText(buf):
     rect, baseline = cv2.getTextSize(buf,cv2.FONT_HERSHEY_SIMPLEX,5,10)
-    cv2.putText(frame, buf, (int((FRAME_WIDTH-rect[0])*0.5),int(FRAME_HEIGHT*0.5)), cv2.FONT_HERSHEY_SIMPLEX, 5,(255,5,5),10,cv2.LINE_AA)
+    cv2.putText(frame, buf, (int((FRAME_WIDTH-rect[0])*0.5),int(FRAME_HEIGHT*0.5)), cv2.FONT_HERSHEY_SIMPLEX, 5,(5,5,200),10,cv2.LINE_AA)
+
+def showCenterBottomText(buf):
+    rect, baseline = cv2.getTextSize(buf,cv2.FONT_HERSHEY_SIMPLEX,5,10)
+    cv2.putText(frame, buf, (int((FRAME_WIDTH-rect[0])*0.5),int(FRAME_HEIGHT-rect[1])), cv2.FONT_HERSHEY_SIMPLEX, 5,(5,5,200),10,cv2.LINE_AA)
 
 def processRequest(url, data, headers, params=None):
     print('processRequest')
@@ -301,6 +305,9 @@ def get_image_text(contents):
 
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
+def show_image_text():
+    frame_title = get_image_text("場次: 10:00\n姓名: 安索帕\n帳號: {}".format(gResult['username']))
+    cv2.imshow("Title",frame_title)
 
 def pkill(pname):
     subprocess.call(['pkill', pname])
@@ -349,7 +356,8 @@ def main_thread():
         # for i in range(1,7):
         #     showText("Line"+str(i), 50, 100*i)
         # showText("Waiting...", 50, 100*(i+1))
-        showText("status:{}".format(status_text[status]), 50,100)
+        if DEBUG:
+            showText("status:{}".format(status_text[status]), 50,100)
 
         userid = gResult["userid"]
         username = gResult["username"]
@@ -365,8 +373,7 @@ def main_thread():
         elif (status==SIRI_TIME):
             buf = '{} {}, 歡迎來到, isobar 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
             pool.spawn(say_welcome, buf)
-            frame_title = get_image_text("場次: 10:00\n姓名: 安索帕\n帳號: {}".format(gResult['username']))
-            cv2.imshow("Title",frame_title)
+            pool.spawn(show_image_text)
         elif (status==DETECT_FACE):
             print("臉部偵測")
             if (cnt%SKIP_FRAME==0):
@@ -385,7 +392,8 @@ def main_thread():
             # 倒數 5,4,3,2,1,0
             # 1秒後處理圖片
             if time.time()-startTime < 2:
-                showCenterText(str(int(time.time()-startTime)))
+                # showCenterText(str(int(time.time()-startTime)))
+                showCenterBottomText("processing....")
             if time.time()-startTime > 1:
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
@@ -406,12 +414,13 @@ def main_thread():
             pool.spawn(say_result,buf)
             startTime = time.time()
         elif (status==SHOW_RESULT):
-            # 顯示結果(5秒)
-            if time.time()-startTime < 6:
-                showCenterText("{}:{},{}".format(gResult["username"],gResult["emotion"],str(int(time.time()-startTime))))
-            if time.time()-startTime > 5:
+            # 顯示結果(3秒)
+            if time.time()-startTime < 4:
+                showCenterBottomText("{}:{},{}".format(gResult["username"],gResult["emotion"],str(int(time.time()-startTime))))
+            if time.time()-startTime > 3:
                 pool.spawn(say_bye, siri.SIRI_BYE[0])
         elif (status==END):
+            showCenterBottomText("Thanks...")
             pass
 
         if ENABLE_FPS:
