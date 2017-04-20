@@ -16,9 +16,11 @@ from skimage import io
 import dlib
 import gevent
 import signal
+import numpy as np
 from socket import *
 from gevent.threadpool import ThreadPool
 from gevent.server import StreamServer
+from PIL import Image, ImageDraw, ImageFont
 import config
 import siri
 
@@ -181,20 +183,21 @@ def visionAnalysis(frame):
     gender = "Male"
     description = ""
     _, f = cv2.imencode('.jpg',frame)
-    gevent.sleep(3)
-    # json = processRequest(config.Vision.url, f.tobytes(), postVisionHeader, {'visualFeatures':'Description,Faces'})
-    # if len(json) > 0:
-    #     description = json["description"]["captions"][0]["text"]
-    #     age = json["faces"][0]["age"]
-    #     gender = json["faces"][0]["gender"]
-    # print('Age:{}, Gender:{}, Desc:{}'.format(age,gender,description))
-    # gResult["description"] = description
-    # gResult["age"] = age
-    # gResult["gender"] = gender
-    if (DEBUG):
-        gResult["gender"] = random.choice(["Male","Female"])
-        gResult["age"] = random.randint(1,100)
+    if DEBUG:
+        gevent.sleep(3)
+        gender = random.choice(["Male","Female"])
+        age = random.randint(1,100)
         gResult["emotion"] = "neutral"
+    else:
+        json = processRequest(config.Vision.url, f.tobytes(), postVisionHeader, {'visualFeatures':'Description,Faces'})
+        if len(json) > 0:
+            description = json["description"]["captions"][0]["text"]
+            age = json["faces"][0]["age"]
+            gender = json["faces"][0]["gender"]
+    print('Age:{}, Gender:{}, Desc:{}'.format(age,gender,description))
+    gResult["description"] = description
+    gResult["age"] = age
+    gResult["gender"] = gender
     if (status==PROCESS_REQUEST):
         status = SAVE_FRAME
     return age,gender,description
@@ -211,7 +214,7 @@ def get_user_info(userid):
     except Exception as e:
         data = {'name': ''}
         print(e)
-    gResult['username'] = data['name']
+    gResult['username'] = data['name'].encode('utf-8')
     print("name:{}".format(gResult['username']))
     if (status==PROCESS_REQUEST):
         status = SIRI_TIME
@@ -263,6 +266,19 @@ def say_bye(contents):
     if (status==PROCESSING):
         status = END
 
+def get_image_text(contents):
+
+    image = Image.new("RGB",(600,400),(0,0,0))
+    draw = ImageDraw.Draw(image)
+    text = contents
+
+    font = ImageFont.truetype("/Library/Fonts/PingFang.ttc", 72)
+    # draw watermark in the bottom right corner
+    draw.text((50,50),unicode(text, 'UTF-8'), font=font, spacing=20, fill=(255,155,155,128))
+
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+
 def pkill(pname):
     subprocess.call(['pkill', pname])
 
@@ -283,11 +299,15 @@ def main():
 
     gevent.wait()
 
+
 def main_thread():
     global frame, status, startTime, gResult,cnt,file_cnt
 
     cv2.namedWindow("Preview")
-    cv2.moveWindow("Preview", 2560-320, 0)
+    cv2.moveWindow("Preview", 2560-320, 40)
+
+    cv2.namedWindow("Title")
+    cv2.moveWindow("Title", int(FRAME_WIDTH+50), 40)
 
     gevent.sleep(1)
     t = ticket()
@@ -322,6 +342,8 @@ def main_thread():
         elif (status==SIRI_TIME):
             buf = '{} {}, 歡迎來到, isobar 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
             pool.spawn(say_welcome, buf)
+            frame_title = get_image_text("場次: 10:00\n姓名: 安索帕\n帳號: {}".format(gResult['username']))
+            cv2.imshow("Title",frame_title)
         elif (status==DETECT_FACE):
             print("臉部偵測")
             if (cnt%SKIP_FRAME==0):
