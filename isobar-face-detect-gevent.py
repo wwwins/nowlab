@@ -184,21 +184,22 @@ def visionAnalysis(frame):
     print("visionAnalysis")
     global status, gResult
     status = PROCESS_REQUEST
-    age = 0
-    gender = "Male"
+    age = random.randint(1,100)
+    gender = random.choice(["Male","Female"])
     description = ""
     _, f = cv2.imencode('.jpg',frame)
     if DEBUG:
         gevent.sleep(3)
-        gender = random.choice(["Male","Female"])
-        age = random.randint(1,100)
+        # gender = random.choice(["Male","Female"])
+        # age = random.randint(1,100)
         gResult["emotion"] = "neutral"
     else:
         json = processRequest(config.Vision.url, f.tobytes(), postVisionHeader, {'visualFeatures':'Description,Faces'})
         if len(json) > 0:
             description = json["description"]["captions"][0]["text"]
-            age = json["faces"][0]["age"]
-            gender = json["faces"][0]["gender"]
+            if len(json["faces"]) > 0:
+                age = json["faces"][0]["age"]
+                gender = json["faces"][0]["gender"]
     print('Age:{}, Gender:{}, Desc:{}'.format(age,gender,description))
     gResult["description"] = description
     gResult["age"] = age
@@ -293,7 +294,7 @@ def get_gradient_image(image):
 
 def get_image_text(contents):
 
-    image = Image.new("RGB",(600,400),(0,0,0))
+    image = Image.new("RGB",(600,500),(0,0,0))
 
     image = get_gradient_image(image)
     draw = ImageDraw.Draw(image)
@@ -305,8 +306,8 @@ def get_image_text(contents):
 
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-def show_image_text():
-    frame_title = get_image_text("場次: 10:00\n姓名: 安索帕\n帳號: {}".format(gResult['username']))
+def show_image_text(contents):
+    frame_title = get_image_text(contents)
     cv2.imshow("Title",frame_title)
 
 def pkill(pname):
@@ -373,7 +374,7 @@ def main_thread():
         elif (status==SIRI_TIME):
             buf = '{} {}, 歡迎來到, isobar 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
             pool.spawn(say_welcome, buf)
-            pool.spawn(show_image_text)
+            pool.spawn(show_image_text, "場次: 10:00\n姓名: 安索帕\n帳號: {}".format(gResult['username']))
         elif (status==DETECT_FACE):
             print("臉部偵測")
             if (cnt%SKIP_FRAME==0):
@@ -412,6 +413,7 @@ def main_thread():
                 msg = siri.FEMALE_RESULT[idx]
                 buf = msg.replace("{}", str(gResult["age"]))
             pool.spawn(say_result,buf)
+            pool.spawn(show_image_text, "場次: 10:00\n姓名: 安索帕\n帳號: {}\n預測年齡: {}".format(gResult['username'], str(gResult['age'])))
             startTime = time.time()
         elif (status==SHOW_RESULT):
             # 顯示結果(3秒)
