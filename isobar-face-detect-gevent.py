@@ -315,6 +315,13 @@ def show_image_text(contents):
     frame_title = get_image_text(contents)
     cv2.imshow("Title",frame_title)
 
+def add_overlay_circle(frame, alpha):
+    overlay = frame.copy()
+    output = frame.copy()
+    cv2.circle(overlay,(640,230),180,(255,255,255),4)
+    cv2.addWeighted(overlay, alpha, output, 1 - alpha,0, output)
+    return output
+
 def pkill(pname):
     subprocess.call(['pkill', pname])
 
@@ -350,6 +357,7 @@ def main_thread():
     cv2.namedWindow("Title")
     cv2.moveWindow("Title", 80, 00)
 
+    alpha = 0.6
     gevent.sleep(1)
     t = ticket()
 
@@ -387,7 +395,7 @@ def main_thread():
             pool.spawn(show_image_text, "場次: {}\n姓名: {}\n帳號: {}".format(gResult['time'],gResult['username'],gResult['email']))
         elif (status==DETECT_FACE):
             print("臉部偵測")
-            # cv2.circle(frame,(640,230),180,(255,255,255),4)
+            frame_with_circle = add_overlay_circle(frame,alpha)
             if (cnt%SKIP_FRAME==0):
                 if ENABLE_FACE_DETECT:
                     if ENABLE_DLIB:
@@ -439,7 +447,10 @@ def main_thread():
         if ENABLE_FPS:
             print("fps:",t.fps())
 
-        cv2.imshow('Video', frame)
+        if status==DETECT_FACE:
+            cv2.imshow('Video', frame_with_circle)
+        else:
+            cv2.imshow('Video', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
