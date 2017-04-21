@@ -42,6 +42,7 @@ status_text = ['init','waiting','checkin','siri time','detect face','process fac
 status = INIT
 ####################
 
+HOST = "10.65.136.40"
 ENABLE_DLIB = True
 ENABLE_FACE_DETECT = True
 ENABLE_FPS = False
@@ -72,12 +73,12 @@ postVisionHeader['Content-Type'] = 'application/octet-stream'
 gResult = {}
 startTime = time.time()
 
-if len(sys.argv) < 3:
-    print("""
-    Usage:
-            python isobar-face-detect.py "000123456" "jacky"
-    """)
-    sys.exit(-1)
+# if len(sys.argv) < 3:
+#     print("""
+#     Usage:
+#             python isobar-face-detect.py "000123456" "jacky"
+#     """)
+#     sys.exit(-1)
 
 # userid = sys.argv[1]
 # username = sys.argv[2]
@@ -86,7 +87,7 @@ cascPath = "/Users/isobar/github/nowlab/data/haarcascade_frontalface_alt.xml"
 faceCascade = cv2.CascadeClassifier(cascPath)
 detector = dlib.get_frontal_face_detector()
 
-pool = ThreadPool(3)
+pool = ThreadPool(4)
 
 if ENABLE_VIDEO_STREAM:
     video_capture = VideoStream(usePiCamera=False).start()
@@ -214,13 +215,17 @@ def get_user_info(userid):
     # gevent.sleep(3)
     # gResult["username"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
     # return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-    response = requests.post("https://uinames.com/api/", {"userid":userid})
+    # response = requests.post("https://uinames.com/api/", {"userid":userid})
+    response = requests.get("http://{}:16888/api/checkInByRFID?dev=0&rfid={}".format(HOST, str(userid)))
     try:
         data = response.json()
     except Exception as e:
         data = {'name': ''}
         print(e)
-    gResult['username'] = data['name'].encode('utf-8')
+    # gResult['username'] = data['name'].encode('utf-8')
+    gResult['username'] = data['user']['name'].encode('utf-8')
+    gResult['time'] = data['user']['time']
+    gResult['email'] = data['user']['email'].split('@')[0]
     print("name:{}".format(gResult['username']))
     if (status==PROCESS_REQUEST):
         status = SIRI_TIME
@@ -302,7 +307,7 @@ def get_image_text(contents):
 
     font = ImageFont.truetype("/Library/Fonts/PingFang.ttc", 72)
     # draw watermark in the bottom right corner
-    draw.text((50,50),unicode(text, 'UTF-8'), font=font, spacing=20, fill=(255,155,155,128))
+    draw.text((50,50),unicode(text, 'UTF-8'), font=font, spacing=20, fill=(240,240,240))
 
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
@@ -318,6 +323,8 @@ def init():
     status = WAITING
     gResult["userid"] = ''
     gResult["username"] = ''
+    gResult["time"] = ''
+    gResult["email"] = ''
     cnt = 0
     file_cnt = 0
 
@@ -334,11 +341,14 @@ def main():
 def main_thread():
     global frame, status, startTime, gResult,cnt,file_cnt
 
+    cv2.namedWindow("Video")
+    cv2.moveWindow("Video", 690, 0)
+
     cv2.namedWindow("Preview")
-    cv2.moveWindow("Preview", 2560-320, 40)
+    cv2.moveWindow("Preview", 2560-320-100, 0)
 
     cv2.namedWindow("Title")
-    cv2.moveWindow("Title", int(FRAME_WIDTH+50), 40)
+    cv2.moveWindow("Title", 80, 00)
 
     gevent.sleep(1)
     t = ticket()
@@ -358,7 +368,7 @@ def main_thread():
         #     showText("Line"+str(i), 50, 100*i)
         # showText("Waiting...", 50, 100*(i+1))
         if DEBUG:
-            showText("status:{}".format(status_text[status]), 50,100)
+            showText("status:{}".format(status_text[status]), 50,50)
 
         userid = gResult["userid"]
         username = gResult["username"]
@@ -374,9 +384,10 @@ def main_thread():
         elif (status==SIRI_TIME):
             buf = '{} {}, 歡迎來到, isobar 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
             pool.spawn(say_welcome, buf)
-            pool.spawn(show_image_text, "場次: 10:00\n姓名: 安索帕\n帳號: {}".format(gResult['username']))
+            pool.spawn(show_image_text, "場次: {}\n姓名: {}\n帳號: {}".format(gResult['time'],gResult['username'],gResult['email']))
         elif (status==DETECT_FACE):
             print("臉部偵測")
+            # cv2.circle(frame,(640,230),180,(255,255,255),4)
             if (cnt%SKIP_FRAME==0):
                 if ENABLE_FACE_DETECT:
                     if ENABLE_DLIB:
@@ -413,7 +424,7 @@ def main_thread():
                 msg = siri.FEMALE_RESULT[idx]
                 buf = msg.replace("{}", str(gResult["age"]))
             pool.spawn(say_result,buf)
-            pool.spawn(show_image_text, "場次: 10:00\n姓名: 安索帕\n帳號: {}\n預測年齡: {}".format(gResult['username'], str(gResult['age'])))
+            pool.spawn(show_image_text, "場次: {}\n姓名: {}\n帳號: {}\n預測年齡: {}".format(gResult['time'],gResult['username'],gResult['email'], str(gResult['age'])))
             startTime = time.time()
         elif (status==SHOW_RESULT):
             # 顯示結果(3秒)
