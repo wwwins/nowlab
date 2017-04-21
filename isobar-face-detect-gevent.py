@@ -240,9 +240,10 @@ def handle(socket, address):
         if not line:
             print("client disconnected")
             break
-        gResult["userid"] = line
-        status = CHECKIN
-        print("echoed %r" % line)
+        if (status==END or status==WAITING):
+            gResult["userid"] = line
+            status = CHECKIN
+            print("echoed %r" % line)
     rfileobj.close()
 
 
