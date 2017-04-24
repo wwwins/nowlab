@@ -222,13 +222,17 @@ def get_user_info(userid):
     except Exception as e:
         data = {'name': ''}
         print(e)
-    # gResult['username'] = data['name'].encode('utf-8')
-    gResult['username'] = data['user']['name'].encode('utf-8')
-    gResult['time'] = data['user']['time']
-    gResult['email'] = data['user']['email'].split('@')[0]
-    print("name:{}".format(gResult['username']))
-    if (status==PROCESS_REQUEST):
-        status = SIRI_TIME
+    if data.get('user'):
+        # gResult['username'] = data['name'].encode('utf-8')
+        gResult['username'] = data['user']['name'].encode('utf-8')
+        gResult['time'] = data['user']['time']
+        gResult['email'] = data['user']['email'].split('@')[0]
+        print("name:{}".format(gResult['username']))
+        if (status==PROCESS_REQUEST):
+            status = SIRI_TIME
+    else:
+        print("key error")
+        status = WAITING
 
 def handle(socket, address):
 
