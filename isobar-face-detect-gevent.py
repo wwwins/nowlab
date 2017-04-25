@@ -50,7 +50,7 @@ ENABLE_VIDEO_STREAM = False
 DEBUG = True
 
 RT = 0.5
-SKIP_FRAME = 5
+SKIP_FRAME = 2
 FRAME_WIDTH = 2560*RT
 FRAME_HEIGHT = 1440*RT
 
@@ -133,7 +133,7 @@ def faceDetect(gray):
     return frame
 
 def showText(buf,x,y):
-    cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(5,5,255),2,cv2.LINE_AA)
+    cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(5,5,200),2,cv2.LINE_AA)
 
 def showCenterText(buf):
     rect, baseline = cv2.getTextSize(buf,cv2.FONT_HERSHEY_SIMPLEX,5,10)
@@ -262,7 +262,7 @@ def say_welcome(contents):
     sayit(random.choice(siri.SIRI_BOSS))
     gevent.sleep(3)
     sayit(random.choice(siri.SIRI_123))
-    gevent.sleep(5)
+    gevent.sleep(2)
     if (status==PROCESSING):
         status = DETECT_FACE
 
@@ -284,8 +284,8 @@ def say_bye(contents):
 
 def get_gradient_image(image):
     imgsize = image.size
-    innerColor = [67, 67, 67]
-    outerColor = [0, 0, 0]
+    innerColor = [0, 92, 151]
+    outerColor = [54, 55, 149]
     for y in range(imgsize[1]):
         for x in range(imgsize[0]):
 
@@ -323,7 +323,9 @@ def show_image_text(contents):
 def add_overlay_circle(frame, alpha):
     overlay = frame.copy()
     output = frame.copy()
-    cv2.circle(overlay,(640,230),180,(255,255,255),4)
+    cv2.circle(overlay,(640,230),150,(255,255,255),4)
+    cv2.line(overlay, (520,320),(320,700),(255,255,255),4)
+    cv2.line(overlay, (760,320),(960,700),(255,255,255),4)
     cv2.addWeighted(overlay, alpha, output, 1 - alpha,0, output)
     return output
 
@@ -346,6 +348,7 @@ def main():
 
     server = StreamServer(('', 5555), handle)
     server.start()
+    print("Starting ISOBAR facial recognition server")
 
     gevent.wait()
 
@@ -387,7 +390,10 @@ def main_thread():
         username = gResult["username"]
 
         if (status==WAITING):
-            print("Waiting")
+            """
+            if DEBUG:
+                print("Waiting")
+            """
         elif (status==CHECKIN):
             gResult["username"] = ''
             cnt = 0
@@ -427,7 +433,7 @@ def main_thread():
         elif (status==SAVE_FRAME):
             print("say result")
             # cv2.imwrite("output/save.png", frame)
-            idx = gResult["age"] / 10
+            idx = gResult["age"] / 5
             if idx > len(siri.MALE_RESULT)-1:
                 idx = len(siri.MALE_RESULT)-1
             if (gResult["gender"]=="Male"):
