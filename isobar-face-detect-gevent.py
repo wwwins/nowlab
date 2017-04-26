@@ -368,12 +368,20 @@ def main_thread():
     # cv2.moveWindow("Preview", 2560-320-100, 0)
     cv2.moveWindow("Preview", 690+1280, 350)
 
+    cv2.namedWindow("SubBackground")
+    cv2.moveWindow("SubBackground", 690+1280, 0)
+
     cv2.namedWindow("Title")
     cv2.moveWindow("Title", 80, 0)
 
     alpha = 0.6
     gevent.sleep(1)
     t = ticket()
+    # fixed OpenCV Error
+    # https://github.com/opencv/opencv/issues/6055#issuecomment-200354222
+    cv2.ocl.setUseOpenCL(False)
+    # fgbg = cv2.createBackgroundSubtractorMOG2()
+    fgbg = cv2.createBackgroundSubtractorKNN(500,400,True)
     init()
 
     while True:
@@ -382,7 +390,12 @@ def main_thread():
         frame = cv2.flip(frame,1)
 
         gray = cv2.resize(frame,(320,180))
+        mask = fgbg.apply(gray)
+        # mask = cv2.erode(mask, None, iterations=2)
+        # mask = cv2.dilate(mask, None, iterations=2)
+        result = cv2.bitwise_and(gray,gray,mask=mask)
         gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
+        cv2.imshow('SubBackground',result)
 
         # 顯示文字
         # for i in range(1,7):
@@ -422,7 +435,7 @@ def main_thread():
                     if faces > 0:
                         cv2.imwrite("output/{}_{}_{}.png".format(userid,username,file_cnt), frame)
                         file_cnt = file_cnt + 1
-                    if file_cnt > 5:
+                    if file_cnt > 10:
                         status = PROCESS_FACE
         elif (status==PROCESS_FACE):
             # 倒數 5,4,3,2,1,0
