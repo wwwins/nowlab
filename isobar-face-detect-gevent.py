@@ -50,7 +50,7 @@ ENABLE_VIDEO_STREAM = False
 DEBUG = True
 
 RT = 0.5
-SKIP_FRAME = 2
+SKIP_FRAME = 1
 FRAME_WIDTH = 2560*RT
 FRAME_HEIGHT = 1440*RT
 
@@ -59,7 +59,7 @@ FRAME_HEIGHT = 1440*RT
 # haarcascade_frontalface_alt2: 1.3
 SCALE_FACTOR = 1.1
 MIN_NEIGHBORS = 5
-#MIN_SIZE = 30
+# MIN_SIZE = 30
 MIN_SIZE = 80
 
 postHeader = {}
@@ -101,6 +101,10 @@ def dlibFaceDetect(gray):
     global frame
     global status
     global startTime
+    # Dlib's face detector is trained to process 80x80 faces
+    # 如果要進行 40x40 臉部偵測，需要將圖放大
+    # http://dlib.net/face_detection_ex.cpp.html
+    gray = cv2.pyrUp(gray)
     faces = detector(gray, 0)
     if len(faces)>0:
         # status = PROCESS_FACE
@@ -114,7 +118,7 @@ def dlibFaceDetect(gray):
     return gray,len(faces)
 
 def faceDetect(gray):
-    global frame
+    global frame,status,startTime
     faces = faceCascade.detectMultiScale(
         gray,
         scaleFactor=SCALE_FACTOR,
@@ -124,13 +128,14 @@ def faceDetect(gray):
     )
 
     if len(faces)>0:
+        startTime = time.time()
         print ("Found {0} faces!".format(len(faces)))
 
     # Draw a rectangle around the faces
     for (x, y, w, h) in faces:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        cv2.rectangle(gray, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-    return frame
+    return gray,len(faces)
 
 def showText(buf,x,y):
     cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(5,5,200),2,cv2.LINE_AA)
@@ -360,15 +365,15 @@ def main_thread():
     cv2.moveWindow("Video", 690, 0)
 
     cv2.namedWindow("Preview")
-    cv2.moveWindow("Preview", 2560-320-100, 0)
+    # cv2.moveWindow("Preview", 2560-320-100, 0)
+    cv2.moveWindow("Preview", 690+1280, 350)
 
     cv2.namedWindow("Title")
-    cv2.moveWindow("Title", 80, 00)
+    cv2.moveWindow("Title", 80, 0)
 
     alpha = 0.6
     gevent.sleep(1)
     t = ticket()
-
     init()
 
     while True:
@@ -376,8 +381,8 @@ def main_thread():
         _,frame = video_capture.read()
         frame = cv2.flip(frame,1)
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.resize(gray,(320,180))
+        gray = cv2.resize(frame,(320,180))
+        gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
 
         # 顯示文字
         # for i in range(1,7):
@@ -412,12 +417,12 @@ def main_thread():
                     if ENABLE_DLIB:
                         resultFrame,faces = dlibFaceDetect(gray)
                     else:
-                        resultFrame = faceDetect(gray)
+                        resultFrame,faces = faceDetect(gray)
                     cv2.imshow('Preview',resultFrame)
                     if faces > 0:
                         cv2.imwrite("output/{}_{}_{}.png".format(userid,username,file_cnt), frame)
                         file_cnt = file_cnt + 1
-                    if file_cnt > 10:
+                    if file_cnt > 5:
                         status = PROCESS_FACE
         elif (status==PROCESS_FACE):
             # 倒數 5,4,3,2,1,0
