@@ -11,6 +11,7 @@ import random
 import string
 import subprocess
 import math
+import logging
 from ticket import ticket
 from imutils.video import VideoStream
 from skimage import io
@@ -462,6 +463,7 @@ def main_thread():
                 buf = msg.replace("{}", str(gResult["age"]))
             pool.spawn(say_result,buf)
             pool.spawn(show_image_text, "場次: {}\n姓名: {}\n帳號: {}\n預測年齡: {}".format(gResult['time'],gResult['username'],gResult['email'], str(gResult['age'])))
+            logging.info("場次: {} 姓名: {} 帳號: {} 預測年齡: {}".format(gResult['time'],gResult['username'],gResult['email'], str(gResult['age'])))
             startTime = time.time()
         elif (status==SHOW_RESULT):
             # 顯示結果(3秒)
@@ -492,5 +494,6 @@ def main_thread():
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, filename="isobar.log", filemode="a+",format="%(asctime)-15s %(levelname)-8s %(message)s")
     print("click 'q' to quit")
     main()
