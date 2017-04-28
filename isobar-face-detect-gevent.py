@@ -48,7 +48,7 @@ ENABLE_DLIB = True
 ENABLE_FACE_DETECT = True
 ENABLE_FPS = False
 ENABLE_VIDEO_STREAM = False
-DEBUG = True
+DEBUG = False
 
 RT = 0.5
 SKIP_FRAME = 1
@@ -420,7 +420,7 @@ def main_thread():
             # 依讀卡機傳來卡號，取得使用者資料
             pool.spawn(get_user_info,userid)
         elif (status==SIRI_TIME):
-            buf = '{} {}, 歡迎來到, isobar 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
+            buf = '{} {}, 歡迎來到, 安索帕 體驗會'.format(random.choice(siri.SIRI_WELCOME), gResult['username'])
             pool.spawn(say_welcome, buf)
             pool.spawn(show_image_text, "場次: {}\n姓名: {}\n帳號: {}".format(gResult['time'],gResult['username'],gResult['email']))
         elif (status==DETECT_FACE):
