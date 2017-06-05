@@ -380,10 +380,10 @@ def main_thread():
 
     cv2.namedWindow("Preview")
     # cv2.moveWindow("Preview", 2560-320-100, 0)
-    cv2.moveWindow("Preview", 690+1280, 0)
+    cv2.moveWindow("Preview", 690+1280, 390)
 
-    cv2.namedWindow("SubBackground")
-    cv2.moveWindow("SubBackground", 690+1280, 0)
+    # cv2.namedWindow("SubBackground")
+    # cv2.moveWindow("SubBackground", 690+1280, 0)
 
     cv2.namedWindow("Title")
     cv2.moveWindow("Title", 80, 0)
