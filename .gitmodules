@@ -1,0 +1,3 @@
+[submodule "linebc-qrcode"]
+	path = linebc-qrcode
+	url = https://github.com/wwwins/linebc-qrcode
