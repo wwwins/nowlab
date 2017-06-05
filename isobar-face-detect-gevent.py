@@ -6,6 +6,7 @@
 import cv2
 import sys
 import time
+import datetime
 import requests
 import random
 import string
@@ -215,30 +216,42 @@ def visionAnalysis(frame):
         status = SAVE_FRAME
     return age,gender,description
 
+'''
+    userid = '1234567890'
+    userid = 'U7bf88313277b1c4e40200dbd7f6af8a8 Ammon'
+'''
 def get_user_info(userid):
     global status, gResult
     status = PROCESS_REQUEST
-    # gevent.sleep(3)
-    # gResult["username"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-    # return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-    # response = requests.post("https://uinames.com/api/", {"userid":userid})
-    response = requests.get("http://{}:16888/api/checkInByRFID?dev=0&rfid={}".format(HOST, str(userid)))
-    try:
-        data = response.json()
-    except Exception as e:
-        data = {'name': ''}
-        print(e)
-    if data.get('user'):
-        # gResult['username'] = data['name'].encode('utf-8')
-        gResult['username'] = data['user']['name'].encode('utf-8')
-        gResult['time'] = data['user']['time']
-        gResult['email'] = data['user']['email'].split('@')[0]
-        print("name:{}".format(gResult['username']))
-        if (status==PROCESS_REQUEST):
-            status = SIRI_TIME
+    buf = userid.split(' ')
+    if (len(buf)>1):
+        userid = buf[0]
+        gResult['username'] = buf[1]
+        gResult['time'] = str(datetime.datetime.now().hour) + ':00'
+        gResult['email'] = buf[1]
+        status = SIRI_TIME
     else:
-        print("key error")
-        status = WAITING
+        # gevent.sleep(3)
+        # gResult["username"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+        # return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+        # response = requests.post("https://uinames.com/api/", {"userid":userid})
+        response = requests.get("http://{}:16888/api/checkInByRFID?dev=0&rfid={}".format(HOST, str(userid)))
+        try:
+            data = response.json()
+        except Exception as e:
+            data = {'name': ''}
+            print(e)
+        if data.get('user'):
+            # gResult['username'] = data['name'].encode('utf-8')
+            gResult['username'] = data['user']['name'].encode('utf-8')
+            gResult['time'] = data['user']['time']
+            gResult['email'] = data['user']['email'].split('@')[0]
+            print("name:{}".format(gResult['username']))
+            if (status==PROCESS_REQUEST):
+                status = SIRI_TIME
+        else:
+            print("key error")
+            status = WAITING
 
 def handle(socket, address):
 
@@ -251,7 +264,7 @@ def handle(socket, address):
             print("client disconnected")
             break
         if (status==END or status==WAITING):
-            gResult["userid"] = line
+            gResult["userid"] = line.rstrip()
             status = CHECKIN
             print("echoed %r" % line)
     rfileobj.close()
@@ -367,7 +380,7 @@ def main_thread():
 
     cv2.namedWindow("Preview")
     # cv2.moveWindow("Preview", 2560-320-100, 0)
-    cv2.moveWindow("Preview", 690+1280, 350)
+    cv2.moveWindow("Preview", 690+1280, 0)
 
     cv2.namedWindow("SubBackground")
     cv2.moveWindow("SubBackground", 690+1280, 0)
@@ -396,7 +409,7 @@ def main_thread():
         # mask = cv2.dilate(mask, None, iterations=2)
         result = cv2.bitwise_and(gray,gray,mask=mask)
         gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
-        cv2.imshow('SubBackground',result)
+        # cv2.imshow('SubBackground',result)
 
         # 顯示文字
         # for i in range(1,7):
