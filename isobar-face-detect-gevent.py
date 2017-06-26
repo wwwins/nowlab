@@ -117,7 +117,7 @@ def dlibFaceDetect(gray):
         print("Detection {}: Left: {} Top: {} Right: {} Bottom: {}".format(i, d.left(), d.top(), d.right(), d.bottom()))
         # cv2.rectangle(frame, (d.left(), d.top()), (d.right(), d.bottom()), (0, 255, 0), 2)
         cv2.rectangle(gray, (d.left(), d.top()), (d.right(), d.bottom()), (0, 255, 0), 2)
-    return gray,len(faces)
+    return gray, faces
 
 def faceDetect(gray):
     global frame,status,startTime
@@ -137,7 +137,13 @@ def faceDetect(gray):
     for (x, y, w, h) in faces:
         cv2.rectangle(gray, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-    return gray,len(faces)
+    return gray, faces
+
+def crop(img, faces):
+    for d in faces:
+        # x, y, x+w, y+h -> d.left(), d.top(), d.right(), d.bottom()
+        # HxW
+        return img[d.top():d.bottom(), d.left():d.right()]
 
 def showText(buf,x,y):
     cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(5,5,200),2,cv2.LINE_AA)
@@ -446,10 +452,12 @@ def main_thread():
                     else:
                         resultFrame,faces = faceDetect(gray)
                     cv2.imshow('Preview',resultFrame)
-                    if faces > 0:
+                    if len(faces) > 0:
                         cv2.imwrite("output/{}_{}_{}.png".format(userid,username,file_cnt), frame)
                         file_cnt = file_cnt + 1
                     if file_cnt > 10:
+                        cropFrame = crop(resultFrame,faces)
+                        cv2.imwrite("output/{}_{}_crop.png".format(userid,username), cropFrame)
                         status = PROCESS_FACE
         elif (status==PROCESS_FACE):
             # 倒數 5,4,3,2,1,0
@@ -460,7 +468,10 @@ def main_thread():
             if time.time()-startTime > 1:
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
-                pool.spawn(visionAnalysis,frame)
+                sayit('處理中，請稍候。')
+                cropFrame = cv2.imread("output/{}_{}_crop.png".format(userid,username))
+                pool.spawn(visionAnalysis,cropFrame)
+                # pool.spawn(visionAnalysis,frame)
                 # pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
             print("say result")
