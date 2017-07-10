@@ -49,6 +49,9 @@ ENABLE_DLIB = True
 ENABLE_FACE_DETECT = True
 ENABLE_FPS = False
 ENABLE_VIDEO_STREAM = False
+# Vision or Face
+# API_TYPE = 'Vision'
+API_TYPE = 'Face'
 DEBUG = False
 
 RT = 0.5
@@ -71,6 +74,10 @@ postHeader['Content-Type'] = 'application/octet-stream'
 postVisionHeader = {}
 postVisionHeader['Ocp-Apim-Subscription-Key'] = config.Vision.key
 postVisionHeader['Content-Type'] = 'application/octet-stream'
+
+postFaceHeader = {}
+postFaceHeader['Ocp-Apim-Subscription-Key'] = config.Face.key
+postFaceHeader['Content-Type'] = 'application/octet-stream'
 
 gResult = {}
 startTime = time.time()
@@ -199,7 +206,7 @@ def visionAnalysis(frame):
     global status, gResult
     status = PROCESS_REQUEST
     age = random.randint(1,100)
-    gender = random.choice(["Male","Female"])
+    gender = random.choice(["male","female"])
     description = ""
     _, f = cv2.imencode('.jpg',frame)
     if DEBUG:
@@ -217,10 +224,40 @@ def visionAnalysis(frame):
     print('Age:{}, Gender:{}, Desc:{}'.format(age,gender,description))
     gResult["description"] = description
     gResult["age"] = age
-    gResult["gender"] = gender
+    gResult["gender"] = gender.lower()
     if (status==PROCESS_REQUEST):
         status = SAVE_FRAME
     return age,gender,description
+
+def faceAnalysis(frame):
+    print("faceAnalysis")
+    global status, gResult
+    status = PROCESS_REQUEST
+    age = random.randint(1,100)
+    gender = random.choice(["male","female"])
+    description = ""
+    _, f = cv2.imencode('.jpg',frame)
+    if DEBUG:
+        gevent.sleep(3)
+        # gender = random.choice(["Male","Female"])
+        # age = random.randint(1,100)
+        gResult["emotion"] = "neutral"
+    else:
+        json = processRequest(config.Face.url, f.tobytes(), postFaceHeader, {'returnFaceAttributes':'age,gender'})
+        print("json:", json)
+        if len(json) > 0:
+            description = json[0]["faceId"]
+            if len(json[0]["faceAttributes"]) > 0:
+                age = json[0]["faceAttributes"]["age"]
+                gender = json[0]["faceAttributes"]["gender"]
+    print('Age:{}, Gender:{}, Desc:{}'.format(age,gender,description))
+    gResult["description"] = description
+    gResult["age"] = age
+    gResult["gender"] = gender.lower()
+    if (status==PROCESS_REQUEST):
+        status = SAVE_FRAME
+    return age,gender,description
+
 
 '''
     userid = '1234567890'
@@ -470,16 +507,19 @@ def main_thread():
                 # visionAnalysis(frame)
                 sayit('處理中，請稍候。')
                 cropFrame = cv2.imread("output/{}_{}_crop.png".format(userid,username))
-                pool.spawn(visionAnalysis,cropFrame)
+                if (API_TYPE=="Vision"):
+                    pool.spawn(visionAnalysis,cropFrame)
+                else:
+                    pool.spawn(faceAnalysis,cropFrame)
                 # pool.spawn(visionAnalysis,frame)
                 # pool.spawn(emotionAnalysis,frame)
         elif (status==SAVE_FRAME):
             print("say result")
             # cv2.imwrite("output/save.png", frame)
-            idx = gResult["age"] / 5
+            idx = int(gResult["age"]) / 5
             if idx > len(siri.MALE_RESULT)-1:
                 idx = len(siri.MALE_RESULT)-1
-            if (gResult["gender"]=="Male"):
+            if (gResult["gender"]=="male"):
                 msg = siri.MALE_RESULT[idx]
                 buf = msg.replace("{}", str(gResult["age"]))
             else:
