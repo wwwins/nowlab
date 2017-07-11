@@ -150,7 +150,12 @@ def crop(img, faces):
     for d in faces:
         # x, y, x+w, y+h -> d.left(), d.top(), d.right(), d.bottom()
         # HxW
-        return img[d.top():d.bottom(), d.left():d.right()]
+        top = d.top() if d.top() > 0 else 0
+        bottom = d.bottom() if d.bottom() > 0 else 0
+        left = d.left() if d.left() > 0 else 0
+        right = d.right() if d.right() > 0 else 0
+        # return img[d.top():d.bottom(), d.left():d.right()]
+        return img[top:bottom, left:right]
 
 def showText(buf,x,y):
     cv2.putText(frame, buf, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(5,5,200),2,cv2.LINE_AA)
