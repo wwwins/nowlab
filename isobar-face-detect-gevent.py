@@ -419,17 +419,17 @@ def main_thread():
     global frame, status, startTime, gResult,cnt,file_cnt
 
     cv2.namedWindow("Video")
-    cv2.moveWindow("Video", 690, 0)
+    cv2.moveWindow("Video", 690, 0+150)
 
     cv2.namedWindow("Preview")
     # cv2.moveWindow("Preview", 2560-320-100, 0)
-    cv2.moveWindow("Preview", 690+1280, 390)
+    cv2.moveWindow("Preview", 690+320, 750+150)
 
     # cv2.namedWindow("SubBackground")
     # cv2.moveWindow("SubBackground", 690+1280, 0)
 
     cv2.namedWindow("Title")
-    cv2.moveWindow("Title", 80, 0)
+    cv2.moveWindow("Title", 80, 0+150)
 
     alpha = 0.6
     gevent.sleep(1)
@@ -505,7 +505,7 @@ def main_thread():
             if time.time()-startTime > 1:
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
-                sayit('處理中，請稍候。')
+                sayit('處理中')
                 cropFrame = cv2.imread("output/{}_{}_crop.png".format(userid,username))
                 if (API_TYPE=="Vision"):
                     pool.spawn(visionAnalysis,cropFrame)
