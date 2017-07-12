@@ -150,10 +150,11 @@ def crop(img, faces):
     for d in faces:
         # x, y, x+w, y+h -> d.left(), d.top(), d.right(), d.bottom()
         # HxW
+        h,w,_ = frame.shape
         top = d.top() if d.top() > 0 else 0
-        bottom = d.bottom() if d.bottom() > 0 else 0
         left = d.left() if d.left() > 0 else 0
-        right = d.right() if d.right() > 0 else 0
+        bottom = d.top()+h if d.bottom()-d.top() > h else d.bottom()
+        right = d.left()+w if d.right()-d.left() > w else d.right()
         # return img[d.top():d.bottom(), d.left():d.right()]
         return img[top:bottom, left:right]
 
