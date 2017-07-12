@@ -498,8 +498,10 @@ def main_thread():
                         cv2.imwrite("output/{}_{}_{}.png".format(userid,username,file_cnt), frame)
                         file_cnt = file_cnt + 1
                     if file_cnt > 10:
-                        cropFrame = crop(resultFrame,faces)
-                        cv2.imwrite("output/{}_{}_crop.png".format(userid,username), cropFrame)
+                        # 不要使用黑白跟臉部裁切後的圖，這會影響年紀的判斷。
+                        # cropFrame = crop(resultFrame,faces)
+                        # cv2.imwrite("output/{}_{}_crop.png".format(userid,username), cropFrame)
+                        cv2.imwrite("output/{}_{}_resize.png".format(userid,username), cv2.pyrDown(frame))
                         status = PROCESS_FACE
         elif (status==PROCESS_FACE):
             # 倒數 5,4,3,2,1,0
@@ -511,7 +513,8 @@ def main_thread():
                 # emotionAnalysis(frame)
                 # visionAnalysis(frame)
                 sayit('處理中')
-                cropFrame = cv2.imread("output/{}_{}_crop.png".format(userid,username))
+                # cropFrame = cv2.imread("output/{}_{}_crop.png".format(userid,username))
+                cropFrame = cv2.imread("output/{}_{}_resize.png".format(userid,username))
                 if (API_TYPE=="Vision"):
                     pool.spawn(visionAnalysis,cropFrame)
                 else:
