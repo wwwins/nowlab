@@ -5,6 +5,7 @@
 #
 import cv2
 import sys
+import re
 import time
 import datetime
 import requests
@@ -275,7 +276,7 @@ def get_user_info(userid):
     buf = userid.split(' ')
     if (len(buf)>1):
         userid = buf[0]
-        gResult['username'] = buf[1]
+        gResult['username'] = re.sub('[/*<>?|"]', '', buf[1])
         gResult['time'] = str(datetime.datetime.now().hour) + ':00'
         gResult['email'] = buf[1]
         status = SIRI_TIME
@@ -292,7 +293,7 @@ def get_user_info(userid):
             print(e)
         if data.get('user'):
             # gResult['username'] = data['name'].encode('utf-8')
-            gResult['username'] = data['user']['name'].encode('utf-8')
+            gResult['username'] = re.sub('[/*<>?|"]', '', data['user']['name'].encode('utf-8'))
             gResult['time'] = data['user']['time']
             gResult['email'] = data['user']['email'].split('@')[0]
             print("name:{}".format(gResult['username']))
